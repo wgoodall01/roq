@@ -1,5 +1,7 @@
 [package]
 name = "roq"
+description = "Proc-macro Coq code generation and proof automation"
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 
