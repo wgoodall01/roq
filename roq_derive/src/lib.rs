@@ -1,12 +1,12 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::parse::{Parse, ParseStream, Result};
+use syn::parse::Result;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, ItemFn, Token};
+use syn::{parse_macro_input, ItemFn};
 
 /// Generate a Coq `Definition` statement from a Rust function.
 #[proc_macro_attribute]
-pub fn definition(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn definition(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
 
     let name = input.sig.ident.to_string();
@@ -91,12 +91,6 @@ pub fn definition(attr: TokenStream, item: TokenStream) -> TokenStream {
     println!("{coq_defn:#}");
 
     TokenStream::from(quote!(#input))
-}
-
-#[derive(Debug)]
-struct DefinitionArgs {
-    /// Relative path to a Coq vernacular file to generate.
-    generate: Option<String>,
 }
 
 #[derive(Debug, Clone)]

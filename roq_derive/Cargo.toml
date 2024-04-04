@@ -1,5 +1,7 @@
 [package]
 name = "roq_derive"
+description = "Derive macros to generate Coq code from Rust"
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 
