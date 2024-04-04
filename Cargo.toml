@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = [
+	"roq",
+	"roq_derive"
+]
+
+[package]
+name = "roq_examples"
+version = "0.1.0"
+edition = "2021"
+private = true
+
+[dependencies]
+roq = { path = "./roq" }
+roq_derive = { path = "./roq_derive" }
+
