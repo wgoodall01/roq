@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Install coq
+        run: sudo apt-get install -y coq
       - name: Run tests
         run: make test
 
