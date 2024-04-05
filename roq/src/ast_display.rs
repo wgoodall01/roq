@@ -1,6 +1,16 @@
 use crate::ast;
 use std::fmt;
 
+impl fmt::Display for ast::Vernacular {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for stmt in &self.statements {
+            writeln!(f, "{}", stmt)?;
+            writeln!(f)?;
+        }
+        Ok(())
+    }
+}
+
 impl fmt::Display for ast::Statement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

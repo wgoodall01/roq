@@ -14,7 +14,7 @@ test:
 
 .PHONY: check
 check:
-	cargo check --all-targets --all --verbose
+	cargo check --all-targets --all
 
 .PHONY: lint
 lint:

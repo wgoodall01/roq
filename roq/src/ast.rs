@@ -3,6 +3,19 @@ use serde::{Deserialize, Serialize};
 // TODO: Newtype wrapper restricting this to valid Coq identifiers.
 pub type Ident = String;
 
+/// A Coq vernacular file.
+pub struct Vernacular {
+    pub statements: Vec<Statement>,
+}
+
+impl From<Statement> for Vernacular {
+    fn from(stmt: Statement) -> Self {
+        Vernacular {
+            statements: vec![stmt],
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum Statement {
     Definition(Definition),

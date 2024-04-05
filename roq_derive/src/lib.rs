@@ -35,13 +35,13 @@ pub fn definition(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #[doc(hidden)]
         pub mod #fn_name {
             pub mod roq {
-                pub fn as_definition() -> roq::ast::Definition {
+                pub fn definition() -> roq::ast::Definition {
                     use ::roq::ast::*;
                     #definition_tokens
                 }
-                pub fn as_vernacular() -> Vec<roq::ast::Statement> {
-                    let defn = as_definition();
-                    vec![::roq::ast::Statement::Definition(defn)]
+                pub fn vernacular() -> roq::ast::Vernacular {
+                    let defn = definition();
+                    ::roq::ast::Statement::Definition(defn).into()
                 }
             }
         }
