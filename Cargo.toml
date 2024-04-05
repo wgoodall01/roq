@@ -16,3 +16,6 @@ publish = false
 roq = { path = "./roq" }
 roq_derive = { path = "./roq_derive" }
 
+[dev-dependencies]
+shiba = "0.1.1"
+

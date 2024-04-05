@@ -1,7 +1,7 @@
 .SUFFIXES: # disable builtin rules
 
 .PHONY: all
-all: lint test
+all: lint fmt-check test
 
 
 .PHONY: build
@@ -10,7 +10,8 @@ build:
 
 .PHONY: test
 test:
-	cargo test --all-targets --all
+	cargo test --all
+	cargo test --examples --all
 
 .PHONY: check
 check:
@@ -19,3 +20,11 @@ check:
 .PHONY: lint
 lint:
 	cargo clippy --all-targets --all -- -D warnings
+
+.PHONY: fmt
+fmt:
+	cargo fmt --all
+
+.PHONY: fmt-check
+fmt-check:
+	cargo fmt --all -- --check

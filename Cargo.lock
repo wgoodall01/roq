@@ -108,6 +108,7 @@ version = "0.1.0"
 dependencies = [
  "roq",
  "roq_derive",
+ "shiba",
 ]
 
 [[package]]
@@ -142,6 +143,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "shiba"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46e999d3caafdbe07de20db4c787b3be9d669574ef397aa6efc6b19f7c8eef62"
 
 [[package]]
 name = "syn"

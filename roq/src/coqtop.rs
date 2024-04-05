@@ -1,8 +1,7 @@
-
 use eyre::{bail, eyre, Result, WrapErr};
 
+use std::ffi::OsString;
 use std::path::Path;
-use std::{ffi::OsString};
 
 /// A Coqtop binary.
 pub struct Coqtop {
