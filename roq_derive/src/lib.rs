@@ -1,13 +1,17 @@
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use roq::ast;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, ItemFn};
 
 /// Generate a Coq `Definition` statement from a Rust function.
 #[proc_macro_attribute]
 pub fn definition(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(item as ItemFn);
+    let item = TokenStream2::from(item);
+    let input: syn::ItemFn = match syn::parse2(item.clone()) {
+        Ok(input) => input,
+        Err(err) => return TokenStream::from(err.to_compile_error()),
+    };
 
     // Convert the function to a Coq `Definition` AST node.
     let definition = match fn_as_definition(&input) {
@@ -15,10 +19,33 @@ pub fn definition(_attr: TokenStream, item: TokenStream) -> TokenStream {
         Err(err) => return TokenStream::from(err.to_compile_error()),
     };
 
-    println!("{definition:#?}");
-    println!("{definition:#}");
+    // Serialize this to Rust literal tokens.
+    let definition_str = uneval::to_string(definition)
+        .expect("Failed to serialize Coq AST to Rust literal expressions");
+    let definition_tokens: TokenStream2 = definition_str
+        .parse()
+        .expect("Serialized AST is not a valid Rust literal expression");
 
-    TokenStream::from(quote!(#input))
+    // Emit the original, unmodified function, plus a module named `$fn_name::roq` containing an
+    // `as_definition` function that returns the Coq `Definition`.
+    let fn_name = input.sig.ident;
+
+    TokenStream::from(quote! {
+        #item
+        #[doc(hidden)]
+        pub mod #fn_name {
+            pub mod roq {
+                pub fn as_definition() -> roq::ast::Definition {
+                    use ::roq::ast::*;
+                    #definition_tokens
+                }
+                pub fn as_vernacular() -> Vec<roq::ast::Statement> {
+                    let defn = as_definition();
+                    vec![::roq::ast::Statement::Definition(defn)]
+                }
+            }
+        }
+    })
 }
 
 fn fn_as_definition(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
