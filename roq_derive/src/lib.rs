@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::parse::Result;
+use roq::ast;
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, ItemFn};
 
@@ -9,193 +9,172 @@ use syn::{parse_macro_input, ItemFn};
 pub fn definition(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
 
-    let name = input.sig.ident.to_string();
-    let ret = match &input.sig.output {
-        syn::ReturnType::Default => panic!("`Definition` functions must have a return type"),
-        syn::ReturnType::Type(_, ty) => CoqType::try_from(&**ty).unwrap(),
+    // Convert the function to a Coq `Definition` AST node.
+    let definition = match fn_as_definition(&input) {
+        Ok(definition) => definition,
+        Err(err) => return TokenStream::from(err.to_compile_error()),
     };
 
-    let args = input
-        .sig
-        .inputs
-        .iter()
-        .filter_map(|arg| match arg {
-            syn::FnArg::Receiver(_) => panic!("`Definition` functions cannot take `self`"),
+    println!("{definition:#?}");
+    println!("{definition:#}");
+
+    TokenStream::from(quote!(#input))
+}
+
+fn fn_as_definition(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
+    let name = source.sig.ident.to_string();
+
+    // Map the return type, which is mandatory.
+    let ret = match &source.sig.output {
+        syn::ReturnType::Default => {
+            return Err(syn::Error::new(
+                source.sig.output.span(),
+                "expected a return type",
+            ))
+        }
+        syn::ReturnType::Type(_, ty) => type_as_v(ty)?,
+    };
+
+    // Map each of the arguments.
+    let mut args = vec![];
+    for arg in &source.sig.inputs {
+        match arg {
+            syn::FnArg::Receiver(_) => {
+                return Err(syn::Error::new(
+                    arg.span(),
+                    "can't generate Coq `Definition` for function which takes `self`",
+                ))
+            }
+
             syn::FnArg::Typed(pat) => {
                 let name = match &*pat.pat {
                     syn::Pat::Ident(ident) => ident.ident.to_string(),
-                    _ => panic!("unsupported argument pattern"),
+                    _ => {
+                        return Err(syn::Error::new(
+                            pat.pat.span(),
+                            "expected a single identifier, not a pattern, in function argument",
+                        ))
+                    }
                 };
-                let ty = CoqType::try_from(&*pat.ty).unwrap();
-                Some(Arg { name, ty })
+                let ty = type_as_v(&pat.ty)?;
+                args.push(ast::Binder { name, ty });
             }
-        })
-        .collect::<Vec<_>>();
+        }
+    }
 
-    // Make sure the function has one statement
-    let statement = match input.block.stmts.as_slice() {
+    // Make sure the function consists of a single statement.
+    let statement = match source.block.stmts.as_slice() {
         [stmt] => stmt,
-        [] => panic!("`Definition` functions must have a body"),
-        [..] => panic!("`Definition` functions must have a single statement"),
+        [] => {
+            return Err(syn::Error::new(
+                source.block.span(),
+                "expected at least one statement in block",
+            ))
+        }
+
+        // TODO: this is a really dumb restriction.
+        [..] => {
+            return Err(syn::Error::new(
+                source.block.span(),
+                "expected exactly one statement in function body",
+            ))
+        }
     };
 
+    // Make sure that statement is an expression.
     let expr: syn::Expr = match statement {
         syn::Stmt::Expr(expr, _) => expr.clone(),
-        _ => panic!("`Definition` functions must have a single expression statement"),
+        _ => {
+            return Err(syn::Error::new(
+                statement.span(),
+                "expected statement to be an expression",
+            ))
+        }
     };
 
-    // Parse binary addition
+    // Parse binary addition to start out.
     let body = match expr {
+        // Binary addition
         syn::Expr::Binary(syn::ExprBinary {
             left,
             right,
             op: syn::BinOp::Add(_),
             ..
         }) => {
-            let left = match *left {
-                syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Int(int),
-                    ..
-                }) => CoqExpr::Nat(int.base10_parse().unwrap()),
-                syn::Expr::Path(syn::ExprPath {
-                    path: syn::Path { segments, .. },
-                    ..
-                }) => CoqExpr::Var(segments.first().unwrap().ident.to_string()),
-                _ => panic!("unsupported expression"),
-            };
-
-            let right = match *right {
-                syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Int(int),
-                    ..
-                }) => CoqExpr::Nat(int.base10_parse().unwrap()),
-                syn::Expr::Path(syn::ExprPath {
-                    path: syn::Path { segments, .. },
-                    ..
-                }) => CoqExpr::Var(segments.first().unwrap().ident.to_string()),
-                _ => panic!("unsupported expression"),
-            };
-
-            CoqExpr::nat_add(left, right)
+            let lhs = expr_as_v(&left)?;
+            let rhs = expr_as_v(&right)?;
+            ast::Expr::Apply {
+                func: "plus".into(),
+                args: vec![lhs, rhs],
+            }
         }
         _ => panic!("unsupported expression"),
     };
 
-    let coq_defn = CoqDefinition {
+    Ok(ast::Definition {
         name,
         args,
         ret,
         body,
-    };
-    println!("{coq_defn:#?}");
-    println!("{coq_defn:#}");
-
-    TokenStream::from(quote!(#input))
+    })
 }
 
-#[derive(Debug, Clone)]
-struct CoqDefinition {
-    name: String,
-    args: Vec<Arg>,
-    ret: CoqType,
-    body: CoqExpr,
-}
+fn expr_as_v(source: &syn::Expr) -> syn::Result<ast::Expr> {
+    match source {
+        // Match integer literals.
+        syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Int(int),
+            ..
+        }) => Ok(ast::Expr::Nat(int.base10_parse().unwrap())),
 
-impl std::fmt::Display for CoqDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Definition {}", self.name)?;
-        for arg in &self.args {
-            write!(f, " ({}: {})", arg.name, arg.ty)?;
-        }
-        write!(f, " : {} := ", self.ret)?;
-        write!(f, "({})", self.body)?;
-        write!(f, ".")?;
-        Ok(())
-    }
-}
+        // Match boolean literals.
+        syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Bool(boolean),
+            ..
+        }) => Ok(ast::Expr::Bool(boolean.value)),
 
-#[derive(Debug, Clone)]
-struct Arg {
-    name: String,
-    ty: CoqType,
-}
-
-#[derive(Debug, Clone)]
-enum CoqType {
-    Nat,
-}
-
-impl std::fmt::Display for CoqType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            CoqType::Nat => write!(f, "nat"),
-        }
-    }
-}
-
-impl TryFrom<&syn::Type> for CoqType {
-    type Error = syn::Error;
-
-    fn try_from(ty: &syn::Type) -> Result<Self> {
-        match ty {
-            syn::Type::Path(ty) => {
-                let seg = ty.path.segments.first().ok_or_else(|| {
-                    syn::Error::new(ty.path.span(), "expected a single path segment")
-                })?;
-                let ident = seg.ident.to_string();
-                match ident.as_str() {
-                    "u64" => Ok(CoqType::Nat),
-                    _ => Err(syn::Error::new(ty.span(), "unsupported type")),
-                }
+        // Match variables.
+        syn::Expr::Path(syn::ExprPath {
+            path: syn::Path { segments, .. },
+            ..
+        }) => match segments.iter().collect::<Vec<_>>().as_slice() {
+            [segment] => {
+                let ident = &segment.ident;
+                Ok(ast::Expr::Var(ident.to_string()))
             }
-            _ => Err(syn::Error::new(ty.span(), "unsupported type")),
-        }
+            _ => Err(syn::Error::new(
+                segments.first().unwrap().ident.span(),
+                "expected a single path segment",
+            )),
+        },
+
+        _ => Err(syn::Error::new(
+            source.span(),
+            "expected an integer literal, boolean literal, or a variable",
+        )),
     }
 }
 
-#[derive(Debug, Clone)]
-enum CoqExpr {
-    /// Apply a function.
-    Apply { func: String, args: Vec<CoqExpr> },
+fn type_as_v(source: &syn::Type) -> syn::Result<ast::Ty> {
+    match source {
+        syn::Type::Path(ty) => {
+            let segments_str = ty
+                .path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect::<Vec<_>>();
+            let segments_refs = segments_str.iter().map(|s| s.as_str()).collect::<Vec<_>>();
 
-    /// A variable name.
-    Var(String),
-
-    /// A `nat` literal.
-    Nat(u64),
-}
-
-impl CoqExpr {
-    /// Add two `nat`s.
-    fn nat_add(a: CoqExpr, b: CoqExpr) -> CoqExpr {
-        CoqExpr::Apply {
-            func: "Nat.add".into(),
-            args: vec![a, b],
-        }
-    }
-}
-
-impl std::fmt::Display for CoqExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            CoqExpr::Apply { func, args } => {
-                write!(f, "(")?;
-                write!(f, "{}", func)?;
-                if !args.is_empty() {
-                    write!(
-                        f,
-                        " {}",
-                        args.iter()
-                            .map(|arg| arg.to_string())
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    )?;
-                }
-                write!(f, ")")?;
-                Ok(())
+            match segments_refs[..] {
+                ["u64"] | ["std", "u64"] => Ok(ast::Ty::Nat),
+                ["bool"] | ["std", "bool"] => Ok(ast::Ty::Nat),
+                _ => Err(syn::Error::new(ty.span(), "unsupported type")),
             }
-            CoqExpr::Var(name) => write!(f, "{}", name),
-            CoqExpr::Nat(n) => write!(f, "{}", n),
         }
+        _ => Err(syn::Error::new(
+            source.span(),
+            "expected a path type (e.g. `std::u64` or `bool`)",
+        )),
     }
 }

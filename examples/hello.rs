@@ -1,10 +1,10 @@
 use roq_derive::definition;
 
 fn main() {
-    println!("Hello, World!");
+    println!("double(21) = {}", double(21));
 }
 
-#[definition(generate = "double.v")]
+#[definition]
 fn double(a: u64) -> u64 {
     a + a
 }

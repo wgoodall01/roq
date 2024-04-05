@@ -9,6 +9,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
+roq = { path = "../roq" }
 quote = "1.0.35"
 syn = { version = "2.0.58", features = ["full"] }
 
