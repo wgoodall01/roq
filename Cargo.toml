@@ -9,7 +9,8 @@ members = [
 name = "roq_examples"
 version = "0.1.0"
 edition = "2021"
-private = true
+publish = false
+
 
 [dependencies]
 roq = { path = "./roq" }
