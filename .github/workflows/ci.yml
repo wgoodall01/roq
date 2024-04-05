@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
 
 env:
@@ -12,13 +12,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Check
-      run: cargo check --all --verbose
-      
+      - uses: actions/checkout@v3
+      - name: Check
+        run: cargo check --all --verbose
+
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Run tests
-      run: cargo test --all --verbose
+      - uses: actions/checkout@v3
+      - name: Run tests
+        run: cargo test --all --verbose
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Clippy
+        run: cargo clippy --all -- -D warnings
