@@ -30,7 +30,6 @@ impl Coqtop {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .arg("-q") // Don't load the rcfile
-            .env_clear()
             .env("HOME", "/roq-fake-home");
         cmd
     }
