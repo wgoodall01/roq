@@ -1,21 +1,29 @@
-[workspace]
-resolver = "2"
-members = [
-	"roq",
-	"roq_derive"
-]
-
 [package]
-name = "roq_examples"
+name = "roq"
+description = "Proc-macro Coq code generation and proof automation"
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
-publish = false
 
+[features]
+derive = ["dep:roq_derive"]
 
 [dependencies]
-roq = { path = "./roq" }
-roq_derive = { path = "./roq_derive" }
+eyre = "0.6.12"
+tempfile = "3.10.1"
+roq_core = { workspace = true }
+roq_derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 shiba = "0.1.1"
+roq_derive = { workspace = true }
+
+[workspace]
+resolver = "2"
+members = [ "roq_*" ]
+default-members = [ ".", "roq_*" ]
+
+[workspace.dependencies]
+roq_core = { path = "./roq_core", version = "0.1.0" }
+roq_derive = { path = "./roq_derive", version = "0.1.0" }
 
