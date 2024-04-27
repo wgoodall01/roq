@@ -1,9 +1,11 @@
 use eyre::{Result, WrapErr};
 use std::io::Write;
 
-pub mod ast;
-mod ast_display;
 pub mod coqtop;
+
+// Re-export `roq_derive` when `derive` feature is enabled.
+#[cfg(feature = "derive")]
+pub use roq_derive::*;
 
 #[macro_export]
 macro_rules! try_prove {

@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use roq::ast;
+use roq_core::ast;
 use syn::spanned::Spanned;
 
 /// Generate a Coq `Definition` statement from a Rust function.
@@ -35,13 +35,13 @@ pub fn definition(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #[doc(hidden)]
         pub mod #fn_name {
             pub mod roq {
-                pub fn definition() -> roq::ast::Definition {
-                    use ::roq::ast::*;
+                pub fn definition() -> roq_core::ast::Definition {
+                    use ::roq_core::ast::*;
                     #definition_tokens
                 }
-                pub fn vernacular() -> roq::ast::Vernacular {
+                pub fn vernacular() -> roq_core::ast::Vernacular {
                     let defn = definition();
-                    ::roq::ast::Statement::Definition(defn).into()
+                    ::roq_core::ast::Statement::Definition(defn).into()
                 }
             }
         }
