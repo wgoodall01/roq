@@ -1,9 +1,9 @@
 use roq_core::ast;
 use syn::spanned::Spanned;
 
-use crate::{expr::expr_as_v, ty::type_as_v};
+use crate::{expr::expr_as_ast, ty::type_as_ast};
 
-pub fn fn_as_definition(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
+pub fn func_as_ast(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
     let name = source.sig.ident.to_string();
 
     // Map the return type, which is mandatory.
@@ -14,7 +14,7 @@ pub fn fn_as_definition(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
                 "expected a return type",
             ))
         }
-        syn::ReturnType::Type(_, ty) => type_as_v(ty)?,
+        syn::ReturnType::Type(_, ty) => type_as_ast(ty)?,
     };
 
     // Map each of the arguments.
@@ -38,7 +38,7 @@ pub fn fn_as_definition(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
                         ))
                     }
                 };
-                let ty = type_as_v(&pat.ty)?;
+                let ty = type_as_ast(&pat.ty)?;
                 args.push(ast::Binder { name, ty });
             }
         }
@@ -74,24 +74,8 @@ pub fn fn_as_definition(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
         }
     };
 
-    // Parse binary addition to start out.
-    let body = match expr {
-        // Binary addition
-        syn::Expr::Binary(syn::ExprBinary {
-            left,
-            right,
-            op: syn::BinOp::Add(_),
-            ..
-        }) => {
-            let lhs = expr_as_v(&left)?;
-            let rhs = expr_as_v(&right)?;
-            ast::Expr::Apply {
-                func: "plus".into(),
-                args: vec![lhs, rhs],
-            }
-        }
-        _ => panic!("unsupported expression"),
-    };
+    // Parse the body of the statement.
+    let body = expr_as_ast(&expr)?;
 
     Ok(ast::Definition {
         name,
@@ -99,4 +83,50 @@ pub fn fn_as_definition(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
         ret,
         body,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+
+    fn parse(input: &str) -> syn::ItemFn {
+        syn::parse_str(input).expect("Failed to parse source code")
+    }
+
+    fn test_as_def(input: &str) -> ast::Definition {
+        func_as_ast(&parse(input)).expect("Failed to convert function to definition")
+    }
+
+    #[test]
+    fn test_binary_add() {
+        assert_snapshot!(
+            test_as_def(r#"
+                fn add(a: u64, b: u64) -> u64 {
+                    a + b
+                }
+            "#),
+            @r###"
+        Definition add (a: nat) (b: nat) : nat :=
+        	(plus a b)
+        .
+        "###
+        );
+    }
+
+    #[test]
+    fn test_add_one() {
+        assert_snapshot!(
+            test_as_def(r#"
+                fn add(a: u64) -> u64 {
+                    a + 1
+                }
+            "#),
+            @r###"
+        Definition add (a: nat) : nat :=
+        	(plus a 1)
+        .
+        "###
+        );
+    }
 }

@@ -16,7 +16,7 @@ pub fn definition(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     // Convert the function to a Coq `Definition` AST node.
-    let definition = match func::fn_as_definition(&input) {
+    let definition = match func::func_as_ast(&input) {
         Ok(definition) => definition,
         Err(err) => return TokenStream::from(err.to_compile_error()),
     };
