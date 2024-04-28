@@ -2,6 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
+mod block;
 mod expr;
 mod func;
 mod ty;

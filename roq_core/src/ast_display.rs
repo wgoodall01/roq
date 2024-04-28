@@ -72,6 +72,23 @@ impl fmt::Display for ast::Expr {
                 write!(f, "{}", &child)?;
                 Ok(())
             }
+            ast::Expr::Match { scrutinee, cases } => {
+                writeln!(f, "match {scrutinee} with")?;
+                for case in cases {
+                    writeln!(f, "| {} =>", case.pattern)?;
+                    write!(f, "{}", Indent::tab(&case.body))?;
+                }
+                writeln!(f, "end")
+            }
+            ast::Expr::Tt => write!(f, "tt"),
+        }
+    }
+}
+
+impl fmt::Display for ast::Pattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ast::Pattern::Expr(e) => write!(f, "{e}"),
         }
     }
 }
