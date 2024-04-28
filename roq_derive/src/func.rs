@@ -44,38 +44,59 @@ pub fn func_as_ast(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
         }
     }
 
-    // Make sure the function consists of a single statement.
-    let statement = match source.block.stmts.as_slice() {
-        [stmt] => stmt,
-        [] => {
-            return Err(syn::Error::new(
-                source.block.span(),
-                "expected at least one statement in block",
-            ))
-        }
+    // Make sure the function consists of supported statements.
+    let stmts = source.block.stmts.as_slice();
 
-        // TODO: this is a really dumb restriction.
-        [..] => {
-            return Err(syn::Error::new(
-                source.block.span(),
-                "expected exactly one statement in function body",
-            ))
-        }
-    };
+    if stmts.is_empty() {
+        return Err(syn::Error::new(
+            source.block.span(),
+            "expected at least one statement in block",
+        ));
+    }
 
-    // Make sure that statement is an expression.
-    let expr: syn::Expr = match statement {
-        syn::Stmt::Expr(expr, _) => expr.clone(),
+    let mut seq_stmt = match &stmts[stmts.len() - 1] { 
+        syn::Stmt::Expr(expr, _) => expr_as_ast(expr)?,
         _ => {
             return Err(syn::Error::new(
-                statement.span(),
-                "expected statement to be an expression",
+                source.block.span(),
+                "Expected function to end with an expr",
             ))
         }
     };
 
+    for stmt in stmts.iter().rev() {
+        match stmt {
+            syn::Stmt::Expr(_expr, _) => {}
+            syn::Stmt::Local(local) => {
+
+                let Some(local_init) = &local.init else {
+                    return Err(syn::Error::new(
+                        local.span(),
+                        "expected a local variable to be initialized",
+                    ));
+                };
+                let local_init_expr = expr_as_ast(&local_init.expr)?;
+
+                seq_stmt = roq_core::ast::Expr::LetIn {
+                    ident: match &local.pat {
+                        syn::Pat::Ident(ident) => ident.ident.to_string(),
+                        _ => {
+                            return Err(syn::Error::new(
+                                local.pat.span(),
+                                "expected a single identifier, not a pattern, in local variable",
+                            ))
+                        }
+                    },
+                    value: Box::new(local_init_expr),
+                    child: Box::new(seq_stmt),
+                };
+            }
+            _ => {}
+        }
+    }
+
     // Parse the body of the statement.
-    let body = expr_as_ast(&expr)?;
+    let body = seq_stmt;
 
     Ok(ast::Definition {
         name,
@@ -129,4 +150,43 @@ mod tests {
         "###
         );
     }
+
+    #[test]
+    fn test_let_x_add() {
+        assert_snapshot!(
+            test_as_def(r#"
+                fn add(a: u64) -> u64 {
+                    let x = 1;
+                    a + x
+                }
+            "#),
+            @r###"
+        Definition add (a: nat) : nat :=
+        	let x := 1 in
+        	(plus a x)
+        .
+        "###
+        );
+    }
+
+    #[test]
+    fn test_let_x_y_add() {
+        assert_snapshot!(
+            test_as_def(r#"
+                fn add(a: u64) -> u64 {
+                    let x = 1;
+                    let y = 2;
+                    x + y
+                }
+            "#),
+            @r###"
+        Definition add (a: nat) : nat :=
+        	let x := 1 in
+        	let y := 2 in
+        	(plus x y)
+        .
+        "###
+        );
+    }
+
 }

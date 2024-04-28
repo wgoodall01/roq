@@ -49,6 +49,9 @@ pub enum Expr {
     /// A variable name.
     Var(Ident),
 
+    /// A 'let in' expression.
+    LetIn {ident: Ident, value: Box<Expr>, child:Box<Expr>},
+
     /// A `nat` literal.
     Nat(u64),
 

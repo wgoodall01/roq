@@ -62,6 +62,12 @@ impl fmt::Display for ast::Expr {
             ast::Expr::Var(ident) => write!(f, "{ident}"),
             ast::Expr::Nat(n) => write!(f, "{n}"),
             ast::Expr::Bool(b) => write!(f, "{}", if *b { "true" } else { "false" }),
+            ast::Expr::LetIn { ident, value, child } => {
+                write!(f, "let {ident} := {value} in")?;
+                writeln!(f)?;
+                write!(f, "{}", &child)?;
+                Ok(())
+            }   
         }
     }
 }
