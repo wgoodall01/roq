@@ -46,6 +46,12 @@ pub enum Expr {
     /// Apply a function.
     Apply { func: String, args: Vec<Expr> },
 
+    /// Match statement.
+    Match {
+        scrutinee: Box<Expr>,
+        cases: Vec<MatchCase>,
+    },
+
     /// A variable name.
     Var(Ident),
 
@@ -61,4 +67,20 @@ pub enum Expr {
 
     /// A `bool` literal.
     Bool(bool),
+
+    /// A `tt` literal (Coq's unit type).
+    Tt,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct MatchCase {
+    pub pattern: Pattern,
+    pub body: Expr,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum Pattern {
+    /// Match a particular expression.
+    Expr(Expr),
+    // TODO: add more pattern types if necessary.
 }

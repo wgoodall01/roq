@@ -1,7 +1,7 @@
 use roq_core::ast;
 use syn::spanned::Spanned;
 
-use crate::{expr::expr_as_ast, ty::type_as_ast};
+use crate::{block::block_as_ast, ty::type_as_ast};
 
 pub fn func_as_ast(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
     let name = source.sig.ident.to_string();
@@ -44,57 +44,8 @@ pub fn func_as_ast(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
         }
     }
 
-    // Make sure the function consists of supported statements.
-    let stmts = source.block.stmts.as_slice();
-
-    if stmts.is_empty() {
-        return Err(syn::Error::new(
-            source.block.span(),
-            "expected at least one statement in block",
-        ));
-    }
-
-    let mut seq_stmt = match &stmts[stmts.len() - 1] {
-        syn::Stmt::Expr(expr, _) => expr_as_ast(expr)?,
-        _ => {
-            return Err(syn::Error::new(
-                source.block.span(),
-                "Expected function to end with an expr",
-            ))
-        }
-    };
-
-    for stmt in stmts.iter().rev() {
-        match stmt {
-            syn::Stmt::Expr(_expr, _) => {}
-            syn::Stmt::Local(local) => {
-                let Some(local_init) = &local.init else {
-                    return Err(syn::Error::new(
-                        local.span(),
-                        "expected a local variable to be initialized",
-                    ));
-                };
-                let local_init_expr = expr_as_ast(&local_init.expr)?;
-
-                seq_stmt =
-                    roq_core::ast::Expr::LetIn {
-                        ident: match &local.pat {
-                            syn::Pat::Ident(ident) => ident.ident.to_string(),
-                            _ => return Err(syn::Error::new(
-                                local.pat.span(),
-                                "expected a single identifier, not a pattern, in local variable",
-                            )),
-                        },
-                        value: Box::new(local_init_expr),
-                        child: Box::new(seq_stmt),
-                    };
-            }
-            _ => {}
-        }
-    }
-
     // Parse the body of the statement.
-    let body = seq_stmt;
+    let body = block_as_ast(&source.block)?;
 
     Ok(ast::Definition {
         name,
