@@ -13,16 +13,26 @@ macro_rules! try_prove {
         {
             let mut batch = String::new();
             $(
-                batch.push_str(
-                    format!(
-                        "(** ** {} {} *)",
-                        stringify!($tag),
+                batch.push_str(match stringify!($tag) {
+                    "inline" => "(** ** inline *)\n".to_string(),
+                    "file" => format!(
+                        "(** ** file: {} *)\n",
                         stringify!($t)
-                    ).as_str()
-                );
+                    ),
+                    "function" => format!(
+                        "(** ** function: {} *)\n",
+                        stringify!($t)
+                    ),
+                    _ => "(** ** chunk *)\n".to_string(),
+                }.as_str());
                 batch.push_str($crate::_part_to_str!($tag $t));
                 batch.push_str("\n\n\n");
             )*
+
+            eprintln!("```coq");
+            eprintln!("{}", batch);
+            eprintln!("```");
+
             $crate::_try_prove(&batch)
         }
     }

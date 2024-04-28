@@ -26,4 +26,3 @@ default-members = [ ".", "roq_*" ]
 [workspace.dependencies]
 roq_core = { path = "./roq_core", version = "0.1.0" }
 roq_derive = { path = "./roq_derive", version = "0.1.0" }
-

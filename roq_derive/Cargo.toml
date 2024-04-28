@@ -12,7 +12,7 @@ proc-macro = true
 roq_core = { workspace = true }
 quote = "1.0.35"
 syn = { version = "2.0.58", features = ["full"] }
-uneval = "0.2.4"
+uneval = { git = "https://github.com/wgoodall01/uneval", rev = "39c5c0b5b74b8413fa5d4544c1cf9b05e0935484" }
 proc-macro2 = "1.0.79"
 
 [dev-dependencies]

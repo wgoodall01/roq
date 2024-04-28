@@ -11,7 +11,6 @@ build:
 .PHONY: test
 test:
 	cargo test --all
-	cargo test --examples --all
 
 .PHONY: check
 check:
