@@ -54,7 +54,7 @@ pub fn func_as_ast(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
         ));
     }
 
-    let mut seq_stmt = match &stmts[stmts.len() - 1] { 
+    let mut seq_stmt = match &stmts[stmts.len() - 1] {
         syn::Stmt::Expr(expr, _) => expr_as_ast(expr)?,
         _ => {
             return Err(syn::Error::new(
@@ -68,7 +68,6 @@ pub fn func_as_ast(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
         match stmt {
             syn::Stmt::Expr(_expr, _) => {}
             syn::Stmt::Local(local) => {
-
                 let Some(local_init) = &local.init else {
                     return Err(syn::Error::new(
                         local.span(),
@@ -77,19 +76,18 @@ pub fn func_as_ast(source: &syn::ItemFn) -> syn::Result<ast::Definition> {
                 };
                 let local_init_expr = expr_as_ast(&local_init.expr)?;
 
-                seq_stmt = roq_core::ast::Expr::LetIn {
-                    ident: match &local.pat {
-                        syn::Pat::Ident(ident) => ident.ident.to_string(),
-                        _ => {
-                            return Err(syn::Error::new(
+                seq_stmt =
+                    roq_core::ast::Expr::LetIn {
+                        ident: match &local.pat {
+                            syn::Pat::Ident(ident) => ident.ident.to_string(),
+                            _ => return Err(syn::Error::new(
                                 local.pat.span(),
                                 "expected a single identifier, not a pattern, in local variable",
-                            ))
-                        }
-                    },
-                    value: Box::new(local_init_expr),
-                    child: Box::new(seq_stmt),
-                };
+                            )),
+                        },
+                        value: Box::new(local_init_expr),
+                        child: Box::new(seq_stmt),
+                    };
             }
             _ => {}
         }
@@ -188,5 +186,4 @@ mod tests {
         "###
         );
     }
-
 }
